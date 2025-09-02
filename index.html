@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courier Document Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Lato:wght@400;700&family=Open+Sans:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            body { margin: 0; padding: 0; }
+            body * { visibility: hidden; }
+            .printable-page, .printable-page * { visibility: visible; }
+            .printable-page { 
+                page-break-after: always; 
+                position: absolute;
+                top: 0; 
+                left: 0;
+                margin: 0;
+                padding: 0;
+                border: none;
+                box-shadow: none;
+                overflow: hidden; /* Hide anything that spills out */
+            }
+            .printable-page:last-child { page-break-after: auto; }
+            .no-print { display: none !important; }
+        }
+        @page { margin: 0; }
+        .page-a4 { width: 210mm; height: 297mm; padding: 15mm; font-size: 10pt; }
+        .page-letter { width: 8.5in; height: 11in; padding: 0.75in; font-size: 10pt; }
+        .page-legal { width: 8.5in; height: 14in; padding: 0.75in; font-size: 11pt; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8 no-print">
+            <h1 class="text-3xl font-bold text-gray-900">Courier Document Generator</h1>
+            <p class="text-gray-600 mt-2">A versatile tool for creating professional shipping documents.</p>
+        </header>
+
+        <!-- Main Form -->
+        <main class="bg-white p-8 rounded-2xl shadow-lg max-w-5xl mx-auto no-print">
+            
+            <!-- Sender, Receiver, Date Section -->
+            <div class="grid md:grid-cols-3 gap-8 mb-8">
+                <div>
+                    <h2 class="text-xl font-semibold mb-4">Sender Details</h2>
+                    <div id="sender-details" class="p-4 bg-gray-50 rounded-lg min-h-[100px] text-gray-700"></div>
+                    <button id="edit-sender-btn" class="mt-4 w-full bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600">Edit Sender</button>
+                </div>
+                <div>
+                    <h2 class="text-xl font-semibold mb-4">Receiver Details</h2>
+                    <select id="receiver-dropdown" class="block w-full rounded-md border-gray-300 shadow-sm mb-2"></select>
+                    <div id="selected-receivers-list" class="p-2 bg-gray-50 rounded-lg min-h-[76px] space-y-1"></div>
+                    <button id="manage-receivers-btn" class="mt-4 w-full bg-yellow-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-yellow-600">Manage Receiver List</button>
+                </div>
+                <div>
+                    <h2 class="text-xl font-semibold mb-4">Shipment Date</h2>
+                    <input type="date" id="shipment-date" class="block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+            </div>
+
+            <!-- Items Section -->
+            <div class="mb-8">
+                 <h2 class="text-xl font-semibold mb-4">Package Items</h2>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4 items-end">
+                        <div class="lg:col-span-2"><label class="block text-sm font-medium">Product Name</label><input type="text" id="productName" class="mt-1 block w-full rounded-md border-gray-300"></div>
+                        <div class="grid grid-cols-3 gap-2 lg:col-span-2">
+                           <div><label class="block text-sm font-medium">L</label><input type="number" id="length" class="mt-1 block w-full rounded-md border-gray-300"></div>
+                            <div><label class="block text-sm font-medium">W</label><input type="number" id="width" class="mt-1 block w-full rounded-md border-gray-300"></div>
+                            <div><label class="block text-sm font-medium">H</label><input type="number" id="height" class="mt-1 block w-full rounded-md border-gray-300"></div>
+                        </div>
+                        <div><label class="block text-sm font-medium">Weight</label><input type="number" id="weight" class="mt-1 block w-full rounded-md border-gray-300"></div>
+                        <div><label class="block text-sm font-medium">Units</label><input type="number" id="units" value="1" class="mt-1 block w-full rounded-md border-gray-300"></div>
+                        <div><label class="block text-sm font-medium">Value (₹)</label><input type="number" id="value" class="mt-1 block w-full rounded-md border-gray-300"></div>
+                    </div>
+                    <button id="add-item-btn" class="mt-4 w-full bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600">Add Item</button>
+                </div>
+                <div id="items-list" class="mt-4 space-y-2"></div>
+            </div>
+            
+            <!-- Advanced Styling Section -->
+            <div class="mb-2">
+                <button id="toggle-styling-btn" class="w-full text-left font-semibold text-indigo-600 p-2 rounded-lg hover:bg-indigo-50">
+                    <span id="stying-toggle-icon" class="inline-block transform transition-transform">▶</span> Advanced Styling Options
+                </button>
+                <div id="styling-controls" class="hidden mt-4 p-4 border rounded-lg space-y-6">
+                    <!-- Header Image Controls -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center">Header Image<button class="set-default-btn text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded ml-4 font-medium" data-target="img">Set Default</button></h3>
+                        <div class="grid md:grid-cols-3 gap-6">
+                            <div><label class="block text-sm font-medium">Width (px)</label><input type="range" id="style-img-width" min="50" max="500" value="200" class="w-full"><span class="text-sm text-gray-500" id="style-img-width-val">200px</span></div>
+                            <div><label class="block text-sm font-medium">Height (px)</label><input type="range" id="style-img-height" min="50" max="500" value="100" class="w-full"><span class="text-sm text-gray-500" id="style-img-height-val">100px</span></div>
+                            <div><label class="block text-sm font-medium">Top Margin (mm)</label><input type="range" id="style-img-top" min="0" max="50" value="5" class="w-full"><span class="text-sm text-gray-500" id="style-img-top-val">5mm</span></div>
+                            <div><label class="block text-sm font-medium">Alignment</label><select id="style-img-align" class="w-full mt-1 rounded-md border-gray-300"><option value="flex-start">Left</option><option value="center" selected>Center</option><option value="flex-end">Right</option></select></div>
+                            <div><label class="block text-sm font-medium">Layering</label><select id="style-img-zindex" class="w-full mt-1 rounded-md border-gray-300"><option value="0" selected>Normal (On Text Layer)</option><option value="10">In Front of Text</option><option value="-1">Behind Text</option></select></div>
+                            <div><label class="block text-sm font-medium">Rotation (deg)</label><input type="range" id="style-img-rotate" min="-45" max="45" value="0" class="w-full"><span class="text-sm text-gray-500" id="style-img-rotate-val">0deg</span></div>
+                        </div>
+                    </div>
+                    <!-- Footer Image Controls -->
+                    <div class="border-b pb-6">
+                         <h3 class="text-lg font-semibold mb-4 flex items-center">Footer Image<button class="set-default-btn text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded ml-4 font-medium" data-target="footerImg">Set Default</button></h3>
+                        <div class="grid md:grid-cols-3 gap-6">
+                            <div><label class="block text-sm font-medium">Width (px)</label><input type="range" id="style-footerimg-width" min="50" max="500" value="150" class="w-full"><span class="text-sm text-gray-500" id="style-footerimg-width-val">150px</span></div>
+                            <div><label class="block text-sm font-medium">Height (px)</label><input type="range" id="style-footerimg-height" min="50" max="500" value="75" class="w-full"><span class="text-sm text-gray-500" id="style-footerimg-height-val">75px</span></div>
+                            <div><label class="block text-sm font-medium">Layering</label><select id="style-footerimg-zindex" class="w-full mt-1 rounded-md border-gray-300"><option value="0" selected>Normal (On Text Layer)</option><option value="10">In Front of Text</option><option value="-1">Behind Text</option></select></div>
+                        </div>
+                    </div>
+                     <!-- Watermark Controls -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center">Watermark<button class="set-default-btn text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded ml-4 font-medium" data-target="watermark">Set Default</button></h3>
+                        <div class="grid md:grid-cols-3 gap-6">
+                            <div><label class="block text-sm font-medium">Image Width (px)</label><input type="range" id="style-watermark-width" min="50" max="400" value="200" class="w-full"><span class="text-sm text-gray-500" id="style-watermark-width-val">200px</span></div>
+                             <div><label class="block text-sm font-medium">Opacity</label><input type="range" id="style-watermark-opacity" min="0" max="1" step="0.05" value="0.3" class="w-full"><span class="text-sm text-gray-500" id="style-watermark-opacity-val">0.3</span></div>
+                            <div><label class="block text-sm font-medium">Rotation (deg)</label><input type="range" id="style-watermark-rotate" min="-90" max="90" value="-30" class="w-full"><span class="text-sm text-gray-500" id="style-watermark-rotate-val">-30deg</span></div>
+                            <div><label class="block text-sm font-medium">Horizontal Gap (px)</label><input type="range" id="style-watermark-gapx" min="0" max="400" value="200" class="w-full"><span class="text-sm text-gray-500" id="style-watermark-gapx-val">200px</span></div>
+                            <div><label class="block text-sm font-medium">Vertical Gap (px)</label><input type="range" id="style-watermark-gapy" min="0" max="400" value="200" class="w-full"><span class="text-sm text-gray-500" id="style-watermark-gapy-val">200px</span></div>
+                            <div><label class="block text-sm font-medium">Layering</label><select id="style-watermark-zindex" class="w-full mt-1 rounded-md border-gray-300"><option value="-1" selected>Behind Text</option><option value="10">In Front of Text</option></select></div>
+                        </div>
+                    </div>
+                    <!-- Text Styling Controls -->
+                    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <h3 class="text-lg font-semibold md:col-span-2 lg:col-span-4">Text Styles</h3>
+                        <div class="p-3 bg-gray-50 rounded-lg"><h4 class="font-semibold mb-2">Address Blocks</h4><label class="block text-xs">Font</label><select class="style-font-family w-full text-sm" data-section="address"></select><label class="block text-xs mt-2">Size</label><input type="number" class="style-font-size w-full text-sm" data-section="address" value="11" step="0.5"><label class="block text-xs mt-2">Weight</label><select class="style-font-weight w-full text-sm" data-section="address"></select></div>
+                        <div class="p-3 bg-gray-50 rounded-lg"><h4 class="font-semibold mb-2">Body Text</h4><label class="block text-xs">Font</label><select class="style-font-family w-full text-sm" data-section="body"></select><label class="block text-xs mt-2">Size</label><input type="number" class="style-font-size w-full text-sm" data-section="body" value="11" step="0.5"><label class="block text-xs mt-2">Weight</label><select class="style-font-weight w-full text-sm" data-section="body"></select></div>
+                        <div class="p-3 bg-gray-50 rounded-lg"><h4 class="font-semibold mb-2">Items Table</h4><label class="block text-xs">Font</label><select class="style-font-family w-full text-sm" data-section="table"></select><label class="block text-xs mt-2">Size</label><input type="number" class="style-font-size w-full text-sm" data-section="table" value="9" step="0.5"><label class="block text-xs mt-2">Weight</label><select class="style-font-weight w-full text-sm" data-section="table"></select></div>
+                        <div class="p-3 bg-gray-50 rounded-lg"><h4 class="font-semibold mb-2">Footer</h4><label class="block text-xs">Font</label><select class="style-font-family w-full text-sm" data-section="footer"></select><label class="block text-xs mt-2">Size</label><input type="number" class="style-font-size w-full text-sm" data-section="footer" value="11" step="0.5"><label class="block text-xs mt-2">Weight</label><select class="style-font-weight w-full text-sm" data-section="footer"></select></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Options Section -->
+            <div class="grid md:grid-cols-3 gap-8 mb-8">
+                <div><h2 class="text-xl font-semibold mb-2">Header File</h2><div class="flex items-center space-x-4"><input type="checkbox" id="use-header-checkbox" class="h-5 w-5 rounded"><label for="use-header-checkbox">Use</label><input type="file" id="header-upload" class="hidden" accept="image/*"><button id="upload-btn" class="bg-gray-200 py-1 px-3 rounded-lg text-sm" disabled>Upload</button></div><p id="file-name" class="text-xs text-gray-500 mt-2 ml-9"></p></div>
+                <div><h2 class="text-xl font-semibold mb-2">Footer File</h2><div class="flex items-center space-x-4"><input type="checkbox" id="use-footer-checkbox" class="h-5 w-5 rounded"><label for="use-footer-checkbox">Use</label><input type="file" id="footer-upload" class="hidden" accept="image/*"><button id="upload-footer-btn" class="bg-gray-200 py-1 px-3 rounded-lg text-sm" disabled>Upload</button></div><p id="footer-file-name" class="text-xs text-gray-500 mt-2 ml-9"></p></div>
+                <div><h2 class="text-xl font-semibold mb-2">Page Size</h2><select id="page-size-select" class="block w-full rounded-md border-gray-300"><option value="a4" selected>A4</option><option value="letter">Letter</option><option value="legal">Legal</option></select></div>
+            </div>
+            
+            <div class="border-t pt-6">
+                <h2 class="text-xl font-semibold mb-4">Watermark</h2>
+                <div class="flex items-center space-x-4 mb-2">
+                    <input type="checkbox" id="use-watermark-checkbox" class="h-5 w-5 rounded">
+                    <label for="use-watermark-checkbox">Use Watermark</label>
+                </div>
+                <div id="watermark-inputs" class="space-y-2 hidden">
+                    <input type="text" id="style-watermark-url" placeholder="Enter image URL or upload" class="w-full p-2 rounded-md border-gray-300">
+                    <div class="flex items-center space-x-4">
+                        <input type="file" id="watermark-upload" class="hidden" accept="image/*">
+                        <button id="upload-watermark-btn" class="bg-gray-200 py-1 px-3 rounded-lg text-sm">Upload Image</button>
+                        <p id="watermark-file-name" class="text-xs text-gray-500"></p>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Auto-fit toggle -->
+            <div class="flex items-center justify-center mt-6">
+                <input type="checkbox" id="auto-fit-checkbox" class="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500" checked>
+                <label for="auto-fit-checkbox" class="ml-2 font-medium text-gray-700">Auto-fit content to page (adjusts font size)</label>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+                <button id="generate-btn" class="w-full bg-gray-800 text-white font-bold py-3 px-6 rounded-lg">Generate Document</button>
+                <button id="pdf-btn" class="w-full bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600" disabled>Export to PDF</button>
+            </div>
+        </main>
+        
+        <div id="error-box" class="hidden fixed top-5 right-5 bg-red-100 border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-md no-print" role="alert"></div>
+        <div id="success-box" class="hidden fixed top-5 right-5 bg-green-100 border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-md no-print" role="alert"></div>
+        <div id="preview-area" class="mt-8"></div>
+    </div>
+
+    <!-- Modals -->
+    <div id="sender-modal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4 no-print"></div>
+    <div id="receiver-mgmt-modal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4 no-print"></div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONSTANTS & CONFIG ---
+            const DEFAULT_HEADER_URL = 'https://pearlpet.com/cdn/shop/files/PearlPet_New_Logo_small_circle_full-transparent_background.png?v=1704700712&width=300';
+            const DEFAULT_WATERMARK_URL = 'https://pearlpet.com/cdn/shop/files/PearlPet_New_Logo_small_circle_full-transparent_background.png?v=1704700712&width=225';
+            const FONTS = ["Times New Roman", "Arial", "Verdana", "Roboto", "Lato", "Open Sans", "Merriweather"];
+            const FONT_WEIGHTS = { "Normal": 400, "Bold": 700 };
+
+            // --- STATE MANAGEMENT ---
+            let sender = {};
+            let allReceivers = [];
+            let selectedReceiverIds = new Set();
+            let items = [];
+            let headerImage = null;
+            let footerImage = null;
+            let watermarkImage = null;
+            let watermarkImageInfo = { naturalWidth: 0, naturalHeight: 0 };
+            let styles = {};
+
+            // --- DOM ELEMENTS ---
+            const senderModalContainer = document.getElementById('sender-modal');
+            const receiverMgmtModalContainer = document.getElementById('receiver-mgmt-modal');
+            
+            // --- INITIALIZATION ---
+            function initializeApp() {
+                loadDefaultSender();
+                loadReceivers();
+                loadDefaultHeader();
+                initializeStyles();
+                updateWatermarkImage(styles.watermark.url);
+                setupUI();
+                setupEventListeners();
+                updateSenderDetails();
+                populateReceiverDropdown();
+                document.getElementById('shipment-date').value = new Date().toISOString().slice(0, 10);
+            }
+
+            function setupUI() {
+                senderModalContainer.innerHTML = createModalHTML('sender');
+                receiverMgmtModalContainer.innerHTML = createReceiverMgmtModalHTML();
+                populateStyleControls();
+            }
+
+            // --- LOCAL STORAGE ---
+            const saveReceivers = () => localStorage.setItem('courierAppReceivers', JSON.stringify(allReceivers));
+            const loadReceivers = () => {
+                const stored = localStorage.getItem('courierAppReceivers');
+                allReceivers = stored ? JSON.parse(stored) : [{ id: 1, name: "John Doe", phone: "1234567890", address: "123 Main St", state: "California", pincode: "90210" }];
+            };
+
+            function loadDefaultHeader() {
+                headerImage = DEFAULT_HEADER_URL;
+                document.getElementById('use-header-checkbox').checked = true;
+                document.getElementById('upload-btn').disabled = false;
+                document.getElementById('file-name').textContent = 'Default header loaded.';
+            }
+
+            // --- MODAL & UI LOGIC ---
+            const openModal = (modal) => modal.classList.remove('hidden');
+            const closeModal = (modal) => modal.classList.add('hidden');
+            
+            function createModalHTML(type, data = {}) {
+                const isSender = type === 'sender';
+                return `<div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg"><h2 class="text-2xl font-bold mb-6">${isSender ? 'Sender' : (data.id ? 'Edit' : 'Add') + ' Receiver'} Information</h2><form id="${type}-form" class="space-y-4" data-id="${data.id || ''}"><input type="text" name="name" placeholder="Name" class="w-full p-3 rounded-lg border" value="${data.name || ''}" required>${isSender ? `<input type="text" name="designation" placeholder="Designation" class="w-full p-3 rounded-lg border" value="${data.designation || ''}" required><input type="text" name="company" placeholder="Company Name" class="w-full p-3 rounded-lg border" value="${data.company || ''}" required>` : ''}<input type="tel" name="phone" placeholder="Phone Number" class="w-full p-3 rounded-lg border" value="${data.phone || ''}" required><textarea name="address" placeholder="Address" rows="3" class="w-full p-3 rounded-lg border" required>${data.address || ''}</textarea><div class="grid grid-cols-2 gap-4"><input type="text" name="state" placeholder="State" class="w-full p-3 rounded-lg border" value="${data.state || ''}" required><input type="text" name="pincode" placeholder="Pincode" class="w-full p-3 rounded-lg border" value="${data.pincode || ''}" required></div><div class="flex justify-end space-x-4 pt-4"><button type="button" class="close-modal-btn px-6 py-2 rounded-lg bg-gray-200">Cancel</button><button type="submit" class="px-6 py-2 rounded-lg bg-indigo-600 text-white">Save</button></div></form></div>`;
+            }
+
+            function createReceiverMgmtModalHTML() {
+                return `<div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl"><h2 class="text-2xl font-bold mb-6">Manage Receivers</h2><div id="receiver-list-container" class="space-y-2 max-h-96 overflow-y-auto mb-4"></div><div class="flex justify-end space-x-4"><button type="button" class="close-modal-btn px-6 py-2 rounded-lg bg-gray-200">Close</button><button id="add-new-receiver-in-mgmt" class="px-6 py-2 rounded-lg bg-green-600 text-white">Add New Receiver</button></div></div>`;
+            }
+            
+            function renderReceiverMgmtList() {
+                const container = document.getElementById('receiver-list-container');
+                container.innerHTML = allReceivers.map(r => `<div class="flex items-center justify-between p-2 border rounded-lg"><span><strong>${r.name}</strong> - ${r.address}, ${r.state}</span><div><button class="delete-receiver-btn text-red-500 hover:text-red-700 p-1" data-id="${r.id}">Delete</button></div></div>`).join('');
+            }
+
+            // --- STYLING LOGIC ---
+            function initializeStyles() {
+                const savedHeaderStyles = localStorage.getItem('courierAppimgStyleDefaults');
+                const savedFooterStyles = localStorage.getItem('courierAppfooterImgStyleDefaults');
+                const savedWatermarkStyles = localStorage.getItem('courierAppwatermarkStyleDefaults');
+
+                const defaultStyles = {
+                    img: { width: 200, height: 100, zIndex: 0, top: 5, align: 'center', rotate: 0 },
+                    footerImg: { width: 150, height: 75, zIndex: 0 },
+                    watermark: { url: DEFAULT_WATERMARK_URL, width: 200, gapX: 200, gapY: 200, rotate: -30, opacity: 0.3, zIndex: -1 },
+                    address: { fontFamily: 'Times New Roman', fontSize: 11, fontWeight: 400 },
+                    body: { fontFamily: 'Times New Roman', fontSize: 11, fontWeight: 400 },
+                    table: { fontFamily: 'Arial', fontSize: 9, fontWeight: 400 },
+                    footer: { fontFamily: 'Times New Roman', fontSize: 11, fontWeight: 400 }
+                };
+
+                styles = {
+                    ...defaultStyles,
+                    img: savedHeaderStyles ? JSON.parse(savedHeaderStyles) : defaultStyles.img,
+                    footerImg: savedFooterStyles ? JSON.parse(savedFooterStyles) : defaultStyles.footerImg,
+                    watermark: savedWatermarkStyles ? JSON.parse(savedWatermarkStyles) : defaultStyles.watermark,
+                };
+            }
+
+            function populateStyleControls() {
+                const fontOptions = FONTS.map(f => `<option value="${f}">${f}</option>`).join('');
+                const weightOptions = Object.entries(FONT_WEIGHTS).map(([name, val]) => `<option value="${val}">${name}</option>`).join('');
+                document.querySelectorAll('.style-font-family').forEach(sel => sel.innerHTML = fontOptions);
+                document.querySelectorAll('.style-font-weight').forEach(sel => sel.innerHTML = weightOptions);
+
+                Object.keys(styles).forEach(section => {
+                    if (section.includes('img') || section.includes('watermark')) return;
+                    
+                    const fontFamilyEl = document.querySelector(`.style-font-family[data-section="${section}"]`);
+                    if (fontFamilyEl) fontFamilyEl.value = styles[section].fontFamily;
+
+                    const fontWeightEl = document.querySelector(`.style-font-weight[data-section="${section}"]`);
+                    if (fontWeightEl) fontWeightEl.value = styles[section].fontWeight;
+                    
+                    const fontSizeEl = document.querySelector(`.style-font-size[data-section="${section}"]`);
+                    if (fontSizeEl) fontSizeEl.value = styles[section].fontSize;
+                });
+
+                ['img', 'footerImg', 'watermark'].forEach(type => {
+                    Object.keys(styles[type]).forEach(prop => {
+                        const typeForId = type === 'footerImg' ? 'footerimg' : type.toLowerCase();
+                        const elId = `style-${typeForId}-${prop.toLowerCase()}`;
+                        const el = document.getElementById(elId);
+                        if(el) {
+                            el.value = styles[type][prop];
+                            const valEl = document.getElementById(`${elId}-val`);
+                            if(valEl) {
+                                let suffix = 'px';
+                                if (['top'].includes(prop)) suffix = 'mm';
+                                if (['rotate'].includes(prop)) suffix = 'deg';
+                                if (['opacity'].includes(prop)) suffix = '';
+                                valEl.textContent = `${styles[type][prop]}${suffix}`;
+                            }
+                        }
+                    });
+                });
+            }
+
+            function handleStyleChange(e) {
+                const { value, id } = e.target;
+                if (!id.startsWith('style-')) return;
+
+                const idParts = id.split('-');
+                const type = idParts[1];
+                const propFromId = idParts[2];
+
+                let styleGroup;
+                if (type === 'img') {
+                    styleGroup = 'img';
+                } else if (type === 'footerimg') {
+                    styleGroup = 'footerImg';
+                } else {
+                    styleGroup = type; // Catches 'watermark'
+                }
+
+                if (styles[styleGroup]) {
+                    const propKey = Object.keys(styles[styleGroup]).find(k => k.toLowerCase() === propFromId);
+                    if (propKey) {
+                        styles[styleGroup][propKey] = value;
+                        const valEl = document.getElementById(`${id}-val`);
+                        if (valEl) {
+                            let suffix = 'px';
+                            if (propKey === 'top') suffix = 'mm';
+                            if (propKey === 'rotate') suffix = 'deg';
+                            if (propKey === 'opacity') suffix = '';
+                            valEl.textContent = `${value}${suffix}`;
+                        }
+                    }
+                } else if (e.target.dataset.section) {
+                     const { dataset } = e.target;
+                    let styleProp = '';
+                    if (e.target.classList.contains('style-font-family')) { styleProp = 'fontFamily'; } 
+                    else if (e.target.classList.contains('style-font-size')) { styleProp = 'fontSize'; } 
+                    else if (e.target.classList.contains('style-font-weight')) { styleProp = 'fontWeight'; }
+                    if (styleProp) { styles[dataset.section][styleProp] = value; }
+                }
+            }
+
+            function saveStyleDefaults(target) {
+                if (styles[target]) {
+                    localStorage.setItem(`courierApp${target}StyleDefaults`, JSON.stringify(styles[target]));
+                    showSuccess(`${target.charAt(0).toUpperCase() + target.slice(1)} style defaults have been saved.`);
+                }
+            }
+            
+            function applyAutoFit(styleObject, itemCount) {
+                let scaleFactor = 1.0;
+                if (itemCount > 12) { scaleFactor = 0.85; } 
+                else if (itemCount > 8) { scaleFactor = 0.9; } 
+                else if (itemCount < 4) { scaleFactor = 1.1; }
+                ['address', 'body', 'table', 'footer'].forEach(section => {
+                    if(styleObject[section]) {
+                        styleObject[section].fontSize = parseFloat(styleObject[section].fontSize) * scaleFactor;
+                    }
+                });
+            }
+
+            // --- DATA LOGIC ---
+            function loadDefaultSender() { sender = { name: "Manzoor Athar", designation: "Manager NPD", company: "Pearl Polymers Ltd.", phone: "8448261141", address: "A97/2, Okhla Industrial Area Phase 2, New Delhi", state: "New Delhi", pincode: "110020" }; }
+            function updateSenderDetails() { document.getElementById('sender-details').innerHTML = `<p class="font-bold">${sender.name}, ${sender.designation}</p><p>${sender.company}</p><p>${sender.address}, ${sender.state}, ${sender.pincode}</p><p>Phone: ${sender.phone}</p>`; }
+            function populateReceiverDropdown() {
+                const dropdown = document.getElementById('receiver-dropdown');
+                const available = allReceivers.filter(r => !selectedReceiverIds.has(r.id));
+                dropdown.innerHTML = '<option value="" disabled selected>Select recipients to add...</option>' + available.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+            }
+            function renderSelectedReceivers() {
+                const list = document.getElementById('selected-receivers-list');
+                if (selectedReceiverIds.size === 0) { list.innerHTML = '<p class="text-gray-400 text-sm p-2">No recipients selected.</p>'; return; }
+                list.innerHTML = '';
+                selectedReceiverIds.forEach(id => {
+                    const receiver = allReceivers.find(r => r.id === id);
+                    if (receiver) list.innerHTML += `<div class="flex items-center justify-between bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full"><span>${receiver.name}</span><button data-id="${id}" class="remove-receiver-btn ml-2 text-green-600 hover:text-green-800">&times;</button></div>`;
+                });
+            }
+
+            // --- EVENT LISTENERS ---
+            function setupEventListeners() {
+                document.getElementById('edit-sender-btn').addEventListener('click', handleOpenSenderModal);
+                document.getElementById('manage-receivers-btn').addEventListener('click', handleOpenReceiverMgmtModal);
+                document.getElementById('receiver-dropdown').addEventListener('change', handleReceiverSelect);
+                document.getElementById('selected-receivers-list').addEventListener('click', handleRemoveReceiver);
+                document.getElementById('add-item-btn').addEventListener('click', handleAddItem);
+                document.getElementById('items-list').addEventListener('click', handleRemoveItem);
+                document.getElementById('toggle-styling-btn').addEventListener('click', (e) => {
+                    document.getElementById('styling-controls').classList.toggle('hidden');
+                    e.currentTarget.querySelector('span').classList.toggle('rotate-90');
+                });
+                document.getElementById('styling-controls').addEventListener('input', handleStyleChange);
+                document.getElementById('styling-controls').addEventListener('click', (e) => {
+                    if (e.target.classList.contains('set-default-btn')) saveStyleDefaults(e.target.dataset.target);
+                });
+
+                document.getElementById('use-header-checkbox').addEventListener('change', handleHeaderCheckbox);
+                document.getElementById('upload-btn').addEventListener('click', () => document.getElementById('header-upload').click());
+                document.getElementById('header-upload').addEventListener('change', (e) => handleImageUpload(e, 'header'));
+                document.getElementById('use-footer-checkbox').addEventListener('change', handleFooterCheckbox);
+                document.getElementById('upload-footer-btn').addEventListener('click', () => document.getElementById('footer-upload').click());
+                document.getElementById('footer-upload').addEventListener('change', (e) => handleImageUpload(e, 'footer'));
+                
+                document.getElementById('use-watermark-checkbox').addEventListener('change', (e) => {
+                    document.getElementById('watermark-inputs').classList.toggle('hidden', !e.target.checked);
+                });
+                document.getElementById('style-watermark-url').addEventListener('change', (e) => updateWatermarkImage(e.target.value));
+                document.getElementById('upload-watermark-btn').addEventListener('click', () => document.getElementById('watermark-upload').click());
+                document.getElementById('watermark-upload').addEventListener('change', (e) => handleImageUpload(e, 'watermark'));
+
+                document.getElementById('generate-btn').addEventListener('click', handleGenerate);
+                document.getElementById('pdf-btn').addEventListener('click', handleExportPDF);
+                
+                document.body.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('close-modal-btn')) closeModal(e.target.closest('.fixed'));
+                    if (e.target.id === 'add-new-receiver-in-mgmt') {
+                        closeModal(receiverMgmtModalContainer);
+                        senderModalContainer.innerHTML = createModalHTML('receiver');
+                        openModal(senderModalContainer);
+                        document.getElementById('receiver-form').addEventListener('submit', handleReceiverSubmit);
+                    }
+                    if (e.target.classList.contains('delete-receiver-btn')) {
+                        const id = parseInt(e.target.dataset.id);
+                        allReceivers = allReceivers.filter(r => r.id !== id);
+                        selectedReceiverIds.delete(id);
+                        saveReceivers();
+                        renderReceiverMgmtList();
+                        populateReceiverDropdown();
+                        renderSelectedReceivers();
+                    }
+                });
+            }
+
+            // --- EVENT HANDLERS ---
+            function handleOpenSenderModal() {
+                senderModalContainer.innerHTML = createModalHTML('sender', sender);
+                openModal(senderModalContainer);
+                document.getElementById('sender-form').addEventListener('submit', handleSenderSubmit);
+            }
+            function handleSenderSubmit(e) { e.preventDefault(); const formData = new FormData(e.target); for (const [key, value] of formData.entries()) sender[key] = value; updateSenderDetails(); closeModal(senderModalContainer); }
+            function handleOpenReceiverMgmtModal() { renderReceiverMgmtList(); openModal(receiverMgmtModalContainer); }
+            function handleReceiverSubmit(e) { e.preventDefault(); const form = e.target; const formData = new FormData(form); const id = parseInt(form.dataset.id); const data = Object.fromEntries(formData.entries()); if (id) { const index = allReceivers.findIndex(r => r.id === id); allReceivers[index] = { ...allReceivers[index], ...data }; } else { allReceivers.push({ id: Date.now(), ...data }); } saveReceivers(); renderReceiverMgmtList(); populateReceiverDropdown(); closeModal(senderModalContainer); }
+            function handleReceiverSelect(e) { selectedReceiverIds.add(parseInt(e.target.value)); renderSelectedReceivers(); populateReceiverDropdown(); }
+            function handleRemoveReceiver(e) { if (e.target.classList.contains('remove-receiver-btn')) { selectedReceiverIds.delete(parseInt(e.target.dataset.id)); renderSelectedReceivers(); populateReceiverDropdown(); } }
+            function handleHeaderCheckbox(e) { document.getElementById('upload-btn').disabled = !e.target.checked; if (!e.target.checked) { headerImage = null; document.getElementById('file-name').textContent = ''; } else if (!document.getElementById('header-upload').value) { loadDefaultHeader(); } }
+            function handleFooterCheckbox(e) { document.getElementById('upload-footer-btn').disabled = !e.target.checked; if (!e.target.checked) { footerImage = null; document.getElementById('footer-file-name').textContent = ''; } }
+            
+            function updateWatermarkImage(url) {
+                if (!url) { watermarkImage = null; return; }
+                styles.watermark.url = url;
+                watermarkImage = url;
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => {
+                    watermarkImageInfo.naturalWidth = img.naturalWidth;
+                    watermarkImageInfo.naturalHeight = img.naturalHeight;
+                };
+                img.onerror = () => { console.error("Failed to load watermark image. Check URL and CORS policy."); watermarkImageInfo = { naturalWidth: 0, naturalHeight: 0 }; };
+                img.src = url;
+            }
+
+            function handleImageUpload(e, type) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const url = event.target.result;
+                        if (type === 'header') headerImage = url;
+                        else if (type === 'footer') footerImage = url;
+                        else if (type === 'watermark') {
+                            updateWatermarkImage(url);
+                            document.getElementById('style-watermark-url').value = 'Uploaded file';
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                    document.getElementById(type === 'header' ? 'file-name' : (type === 'footer' ? 'footer-file-name' : 'watermark-file-name')).textContent = `File: ${file.name}`;
+                }
+            }
+
+            // --- GENERATION LOGIC ---
+            function handleGenerate() {
+                if (selectedReceiverIds.size === 0) return showError('At least one Receiver is required.');
+                if (items.length === 0) return showError('At least one Item is required.');
+                const totalValue = items.reduce((sum, item) => sum + (item.value * item.units), 0);
+                const pageSizeClass = `page-${document.getElementById('page-size-select').value}`;
+                
+                let generationStyles = JSON.parse(JSON.stringify(styles));
+                ['img', 'footerImg', 'watermark'].forEach(type => {
+                     Object.keys(styles[type]).forEach(prop => {
+                        const typeForId = type === 'footerImg' ? 'footerimg' : type.toLowerCase();
+                        const el = document.getElementById(`style-${typeForId}-${prop.toLowerCase()}`);
+                        if(el) generationStyles[type][prop] = el.value;
+                    });
+                });
+                
+                if (document.getElementById('auto-fit-checkbox').checked) applyAutoFit(generationStyles, items.length);
+                
+                let allPagesHTML = '';
+                selectedReceiverIds.forEach(id => {
+                    const receiver = allReceivers.find(r => r.id === id);
+                    if (receiver) allPagesHTML += generatePageHTML(receiver, totalValue, pageSizeClass, generationStyles);
+                });
+                document.getElementById('preview-area').innerHTML = allPagesHTML;
+                document.getElementById('pdf-btn').disabled = false;
+                document.getElementById('preview-area').scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            async function handleExportPDF() {
+                const { jsPDF } = window.jspdf;
+                const pages = document.querySelectorAll('.printable-page');
+                if (pages.length === 0) return;
+                const pdfBtn = document.getElementById('pdf-btn');
+                pdfBtn.textContent = 'Exporting...'; pdfBtn.disabled = true;
+                const pageSize = document.getElementById('page-size-select').value;
+                const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: pageSize });
+                const pageDimensions = { a4: { w: 210, h: 297 }, letter: { w: 215.9, h: 279.4 }, legal: { w: 215.9, h: 355.6 } };
+                for (let i = 0; i < pages.length; i++) {
+                    const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, logging: false });
+                    if (i > 0) doc.addPage();
+                    doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageDimensions[pageSize].w, pageDimensions[pageSize].h);
+                }
+                doc.save('courier-document.pdf');
+                pdfBtn.textContent = 'Export to PDF'; pdfBtn.disabled = false;
+            }
+
+            function generatePageHTML(receiver, totalValue, pageSizeClass, s) {
+                const textStyle = (section) => `font-family: '${s[section].fontFamily}', sans-serif; font-size: ${parseFloat(s[section].fontSize).toFixed(2)}pt; font-weight: ${s[section].fontWeight}; line-height: 1.5;`;
+                const date = new Date(document.getElementById('shipment-date').value).toLocaleDateString('en-GB');
+
+                // --- Layer Generation ---
+                let headerHTML = '';
+                if (document.getElementById('use-header-checkbox').checked && headerImage) {
+                    const alignCSS = { 'flex-start': 'left: 0;', 'center': 'left: 50%; transform: translateX(-50%);', 'flex-end': 'right: 0;' };
+                    headerHTML = `<div style="position: absolute; top: ${s.img.top}mm; ${alignCSS[s.img.align]} z-index: ${s.img.zIndex}; transform-origin: center; transform: ${s.img.align === 'center' ? 'translateX(-50%)' : ''} rotate(${s.img.rotate}deg);">
+                                    <img src="${headerImage}" alt="Header" style="max-width: ${s.img.width}px; max-height: ${s.img.height}px; width: auto; height: auto; object-fit: contain;">
+                                  </div>`;
+                }
+
+                let footerHTML = '';
+                if (document.getElementById('use-footer-checkbox').checked && footerImage) {
+                    footerHTML = `<div style="position: absolute; bottom: 15mm; left: 0; right: 0; text-align: center; z-index: ${s.footerImg.zIndex};">
+                                    <img src="${footerImage}" alt="Footer" style="width: ${s.footerImg.width}px; height: ${s.footerImg.height}px; object-fit: contain; display: inline-block;">
+                                  </div>`;
+                }
+
+                let watermarkHTML = '';
+                if (document.getElementById('use-watermark-checkbox').checked && watermarkImage && watermarkImageInfo.naturalWidth > 0) {
+                    const ratio = watermarkImageInfo.naturalHeight / watermarkImageInfo.naturalWidth;
+                    const bgHeight = parseFloat(s.watermark.width) * ratio;
+                    const totalBgWidth = parseFloat(s.watermark.width) + parseFloat(s.watermark.gapX);
+                    const totalBgHeight = bgHeight + parseFloat(s.watermark.gapY);
+                    const backgroundSize = `${totalBgWidth}px ${totalBgHeight}px`;
+
+                    watermarkHTML = `<div style="position: absolute; inset: 0; z-index: ${s.watermark.zIndex}; opacity: ${s.watermark.opacity}; transform: rotate(${s.watermark.rotate}deg); background-image: url('${watermarkImage}'); background-repeat: repeat; background-size: ${backgroundSize}; pointer-events: none;"></div>`;
+                }
+
+                const contentHTML = `
+                    <div style="padding-top: ${parseFloat(s.img.top) + (parseFloat(s.img.height) / 10)}mm;">
+                        <div class="text-center mt-2 mb-4" style="${textStyle('address')}">
+                            <p>${sender.address}, ${sender.state} - ${sender.pincode}</p><p>Phone: ${sender.phone}</p>
+                        </div>
+                        <div style="text-align: right; ${textStyle('address')}">Date: ${date}</div>
+                        <div class="mb-4" style="${textStyle('address')}"><p><strong>To,</strong></p><p>${receiver.name}</p><p>${receiver.address}</p><p>${receiver.state} - ${receiver.pincode}</p><p>Phone: ${receiver.phone}</p></div>
+                        <h2 class="text-center font-bold my-4 underline" style="${textStyle('body')}">TO WHOMSOEVER IT MAY CONCERN</h2>
+                        <div class="mb-4" style="${textStyle('body')}"><p><strong>Dear ${receiver.name},</strong></p><p class="mt-2">We are sending herewith the following sample(s):</p></div>
+                        <table class="w-full border-collapse border border-black my-4" style="${textStyle('table')}">
+                            <thead><tr class="bg-gray-100"><th class="border p-1">S.No.</th><th class="border p-1">Item Description</th><th class="border p-1">Dimensions</th><th class="border p-1">Weight</th><th class="border p-1">Units</th></tr></thead>
+                            <tbody>${items.map((item, index) => `<tr><td class="border p-1 text-center">${index + 1}</td><td class="border p-1">${item.productName}</td><td class="border p-1 text-center">${item.dimensions}</td><td class="border p-1 text-center">${item.weight}</td><td class="border p-1 text-center">${item.units}</td></tr>`).join('')}</tbody>
+                            <tfoot><tr><td colspan="5" class="p-2" style="${textStyle('body')}">The approximate value of the sample(s) is/are ₹${totalValue.toFixed(2)} and is not meant for sales.</td></tr></tfoot>
+                        </table>
+                    </div>
+                    <div style="flex-grow: 1;"></div>
+                    <div>
+                        <p class="my-4" style="${textStyle('body')}">Thank You.</p>
+                        <div class="mt-8" style="${textStyle('footer')}"><p>Yours faithfully,</p><p>${sender.name}, ${sender.designation}</p><p class="font-bold">For ${sender.company}</p><br><br><p>(Authorised Signatory)</p></div>
+                    </div>
+                `;
+                
+                return `<div class="printable-page bg-white shadow-lg mx-auto border ${pageSizeClass}" style="position: relative; box-sizing: border-box; overflow: hidden;">
+                            ${watermarkHTML}
+                            ${headerHTML}
+                            <div class="text-layer" style="position: relative; z-index: 0; height: 100%; display: flex; flex-direction: column;">
+                                ${contentHTML}
+                            </div>
+                             ${footerHTML}
+                        </div>`;
+            }
+
+            // --- Item Handlers ---
+            function handleAddItem() {
+                const itemData = { productName: document.getElementById('productName').value, length: document.getElementById('length').value, width: document.getElementById('width').value, height: document.getElementById('height').value, weight: document.getElementById('weight').value, units: document.getElementById('units').value, value: document.getElementById('value').value };
+                if (Object.values(itemData).some(v => !v)) return showError('Please fill all item fields.');
+                items.push({ id: Date.now(), productName: itemData.productName, dimensions: `${itemData.length}x${itemData.width}x${itemData.height} cm`, weight: `${itemData.weight} kg`, units: parseInt(itemData.units), value: parseFloat(itemData.value) });
+                renderItems();
+                ['productName', 'length', 'width', 'height', 'weight', 'value'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('units').value = 1;
+            }
+            function renderItems() {
+                const list = document.getElementById('items-list');
+                if (items.length === 0) { list.innerHTML = ''; return; }
+                list.innerHTML = `<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50"><tr><th class="px-3 py-2 text-left text-xs font-medium">Product</th><th class="px-3 py-2 text-left text-xs font-medium">Dimensions</th><th class="px-3 py-2 text-left text-xs font-medium">Weight</th><th class="px-3 py-2 text-left text-xs font-medium">Units</th><th class="px-3 py-2 text-left text-xs font-medium">Value</th><th></th></tr></thead>
+                    <tbody class="bg-white divide-y divide-gray-200">${items.map(item => `<tr data-id="${item.id}"><td class="px-3 py-2 text-sm">${item.productName}</td><td class="px-3 py-2 text-sm">${item.dimensions}</td><td class="px-3 py-2 text-sm">${item.weight}</td><td class="px-3 py-2 text-sm">${item.units}</td><td class="px-3 py-2 text-sm">₹${item.value.toFixed(2)}</td><td class="px-3 py-2 text-right"><button class="remove-item-btn text-red-600 hover:text-red-900">Remove</button></td></tr>`).join('')}</tbody>
+                </table></div>`;
+            }
+            function handleRemoveItem(e) { if (e.target.classList.contains('remove-item-btn')) { items = items.filter(item => item.id !== parseInt(e.target.closest('tr').dataset.id)); renderItems(); } }
+            function showError(message) { const box = document.getElementById('error-box'); box.innerHTML = `<strong class="font-bold">Error!</strong> <span class="block sm:inline">${message}</span>`; box.classList.remove('hidden'); setTimeout(() => box.classList.add('hidden'), 3000); }
+            function showSuccess(message) { const box = document.getElementById('success-box'); box.innerHTML = `<strong class="font-bold">Success!</strong> <span class="block sm:inline">${message}</span>`; box.classList.remove('hidden'); setTimeout(() => box.classList.add('hidden'), 3000); }
+            
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
+
